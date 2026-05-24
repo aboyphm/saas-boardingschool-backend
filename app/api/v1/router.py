@@ -6,7 +6,9 @@ from app.api.v1.endpoints import (
     attendance,
     auth,
     dormitory,
+    exams,
     finance,
+    hr,
     notifications,
     reports,
     students,
@@ -29,3 +31,5 @@ api_router.include_router(dormitory.router, prefix="/dormitory", tags=["Dormitor
 api_router.include_router(finance.router, prefix="/finance", tags=["Finance"])
 api_router.include_router(notifications.router, prefix="/notifications", tags=["Notifications"])
 api_router.include_router(reports.router, prefix="/reports", tags=["Reports"])
+api_router.include_router(hr.router, prefix="/hr", tags=["HR"])
+api_router.include_router(exams.router, prefix="/exams", tags=["Exams"])

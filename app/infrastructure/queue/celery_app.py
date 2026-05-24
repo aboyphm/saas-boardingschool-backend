@@ -15,6 +15,7 @@ celery_app = Celery(
         "app.infrastructure.queue.tasks.notification_tasks",
         "app.infrastructure.queue.tasks.report_tasks",
         "app.infrastructure.queue.tasks.finance_tasks",
+        "app.infrastructure.queue.tasks.hr_tasks",
     ],
 )
 
@@ -66,5 +67,11 @@ celery_app.conf.beat_schedule = {
         "task": "app.infrastructure.queue.tasks.finance_tasks.mark_overdue_invoices",
         "schedule": crontab(hour=1, minute=0),
         "options": {"queue": "finance"},
+    },
+    # Alert HR about contracts expiring within 30 days — daily at 09:00 WIB
+    "check-contract-expiry": {
+        "task": "app.infrastructure.queue.tasks.hr_tasks.check_contract_expiry",
+        "schedule": crontab(hour=9, minute=0),
+        "options": {"queue": "default"},
     },
 }

@@ -14,7 +14,7 @@ class StudentCreate(BaseSchema):
     gender: Gender
     birth_date: date | None = None
     birth_place: str | None = None
-    religion: str = "Islam"
+    religion: str = ""
     nationality: str = "Indonesian"
     address: str | None = None
     city: str | None = None

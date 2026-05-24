@@ -3,7 +3,7 @@ from __future__ import annotations
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from app.api.deps import get_current_active_user, require_roles
 from app.core.database import AsyncSession, get_db
@@ -11,6 +11,7 @@ from app.domains.teachers.repository import TeacherRepository
 from app.domains.teachers.schemas import TeacherCreate, TeacherResponse, TeacherUpdate
 from app.domains.teachers.service import TeacherService
 from app.domains.users.models import User
+from app.domains.users.repository import UserRepository
 from app.shared.base_schema import PaginatedResponse
 from app.shared.enums import UserRole
 from app.shared.pagination import PaginationParams, get_pagination_params
@@ -19,7 +20,13 @@ router = APIRouter()
 
 
 def _get_service(db: AsyncSession) -> TeacherService:
-    return TeacherService(TeacherRepository(db))
+    return TeacherService(TeacherRepository(db), UserRepository(db))
+
+
+def _tenant(user: User) -> uuid.UUID:
+    if user.tenant_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No tenant context.")
+    return user.tenant_id
 
 
 @router.get("/", response_model=PaginatedResponse[TeacherResponse])
@@ -31,7 +38,7 @@ async def list_teachers(
 ) -> PaginatedResponse[TeacherResponse]:
     service = _get_service(db)
     items, total = await service.list_teachers(
-        tenant_id=current_user.tenant_id,
+        tenant_id=_tenant(current_user),
         pagination=pagination,
         query=search,
     )
@@ -63,7 +70,7 @@ async def get_teacher(
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> TeacherResponse:
     service = _get_service(db)
-    teacher = await service.get_or_404(teacher_id, current_user.tenant_id)
+    teacher = await service.get_or_404(teacher_id, _tenant(current_user))
     return TeacherResponse.model_validate(teacher)
 
 
@@ -77,7 +84,7 @@ async def update_teacher(
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> TeacherResponse:
     service = _get_service(db)
-    teacher = await service.update_teacher(teacher_id, current_user.tenant_id, data)
+    teacher = await service.update_teacher(teacher_id, _tenant(current_user), data)
     return TeacherResponse.model_validate(teacher)
 
 
@@ -90,4 +97,4 @@ async def delete_teacher(
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> None:
     service = _get_service(db)
-    await service.delete_teacher(teacher_id, current_user.tenant_id)
+    await service.delete_teacher(teacher_id, _tenant(current_user))

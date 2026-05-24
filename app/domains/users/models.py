@@ -36,6 +36,7 @@ class User(BaseModel, SoftDeleteMixin):
     username: Mapped[str | None] = mapped_column(String(100), nullable=True)
     full_name: Mapped[str] = mapped_column(String(255), nullable=False)
     phone: Mapped[str | None] = mapped_column(String(30), nullable=True)
+    dial_code: Mapped[str] = mapped_column(String(5), nullable=False, default="62", server_default="62")
     avatar_url: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     role: Mapped[UserRole] = mapped_column(String(30), nullable=False, index=True)

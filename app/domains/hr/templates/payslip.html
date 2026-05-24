@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "Helvetica Neue", Arial, sans-serif;
+    font-size: 11px;
+    color: #1a1a1a;
+    padding: 28px 32px;
+  }
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    border-bottom: 2px solid #1E40AF;
+    padding-bottom: 14px;
+    margin-bottom: 20px;
+  }
+  .header .school { font-size: 16px; font-weight: 700; color: #1E40AF; }
+  .header .subtitle { font-size: 11px; color: #64748B; margin-top: 3px; }
+  .slip-label {
+    text-align: right;
+    font-size: 13px;
+    font-weight: 700;
+    color: #1E40AF;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+  .slip-period { font-size: 11px; color: #64748B; margin-top: 2px; }
+
+  .employee-box {
+    background: #F1F5F9;
+    border-radius: 6px;
+    padding: 12px 16px;
+    margin-bottom: 20px;
+    display: flex;
+    gap: 32px;
+  }
+  .emp-field label { font-size: 9px; text-transform: uppercase; color: #64748B; letter-spacing: 0.05em; }
+  .emp-field .value { font-size: 12px; font-weight: 600; margin-top: 2px; }
+
+  .section { margin-bottom: 18px; }
+  .section-title {
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #64748B;
+    border-bottom: 1px solid #E2E8F0;
+    padding-bottom: 4px;
+    margin-bottom: 8px;
+  }
+  table.items { width: 100%; border-collapse: collapse; }
+  table.items td { padding: 3px 0; }
+  table.items td:last-child { text-align: right; font-family: "Courier New", monospace; }
+  table.items tr.subtotal td {
+    border-top: 1px solid #CBD5E1;
+    padding-top: 5px;
+    font-weight: 700;
+  }
+
+  .net-box {
+    background: #1E40AF;
+    color: #fff;
+    border-radius: 6px;
+    padding: 12px 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+  }
+  .net-box .label { font-size: 11px; font-weight: 600; }
+  .net-box .amount { font-size: 16px; font-weight: 700; font-family: "Courier New", monospace; }
+
+  .footer {
+    text-align: center;
+    font-size: 9px;
+    color: #94A3B8;
+    border-top: 1px solid #E2E8F0;
+    padding-top: 10px;
+  }
+</style>
+</head>
+<body>
+  <div class="header">
+    <div>
+      <div class="school">{{ school_name }}</div>
+      <div class="subtitle">Slip Gaji Karyawan</div>
+    </div>
+    <div>
+      <div class="slip-label">Slip Gaji</div>
+      <div class="slip-period">{{ period_label }}</div>
+    </div>
+  </div>
+
+  <div class="employee-box">
+    <div class="emp-field">
+      <label>Nama Karyawan</label>
+      <div class="value">{{ employee_name }}</div>
+    </div>
+    {% if employee_number %}
+    <div class="emp-field">
+      <label>No. Karyawan</label>
+      <div class="value">{{ employee_number }}</div>
+    </div>
+    {% endif %}
+    {% if position %}
+    <div class="emp-field">
+      <label>Jabatan</label>
+      <div class="value">{{ position }}</div>
+    </div>
+    {% endif %}
+    {% if department %}
+    <div class="emp-field">
+      <label>Departemen</label>
+      <div class="value">{{ department }}</div>
+    </div>
+    {% endif %}
+    <div class="emp-field">
+      <label>Status Kepegawaian</label>
+      <div class="value">{{ employment_type }}</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Penghasilan</div>
+    <table class="items">
+      <tr>
+        <td>Gaji Pokok</td>
+        <td>{{ base_salary_fmt }}</td>
+      </tr>
+      {% for a in allowances %}
+      <tr>
+        <td>Tunjangan — {{ a.name }}</td>
+        <td>{{ a.amount_fmt }}</td>
+      </tr>
+      {% endfor %}
+      {% for a in one_time_additions %}
+      <tr>
+        <td>Tambahan — {{ a.description }}</td>
+        <td>{{ a.amount_fmt }}</td>
+      </tr>
+      {% endfor %}
+      <tr class="subtotal">
+        <td>Total Gaji Kotor</td>
+        <td>{{ gross_salary_fmt }}</td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Potongan</div>
+    <table class="items">
+      <tr>
+        <td>PPh 21</td>
+        <td>{{ tax_amount_fmt }}</td>
+      </tr>
+      <tr>
+        <td>BPJS Kesehatan (Karyawan 1%)</td>
+        <td>{{ bpjs_employee_fmt }}</td>
+      </tr>
+      {% for a in one_time_deductions %}
+      <tr>
+        <td>Potongan — {{ a.description }}</td>
+        <td>{{ a.amount_fmt }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
+
+  <div class="net-box">
+    <span class="label">Gaji Bersih (Take-home Pay)</span>
+    <span class="amount">{{ net_salary_fmt }}</span>
+  </div>
+
+  <div class="footer">
+    Slip gaji ini diterbitkan secara otomatis oleh sistem. Dicetak pada {{ printed_at }}.
+    Harap simpan dokumen ini sebagai bukti penerimaan gaji.
+  </div>
+</body>
+</html>

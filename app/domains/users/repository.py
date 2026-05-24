@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import uuid
 
-from sqlalchemy import select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.domains.users.models import User, UserSession
@@ -78,6 +78,44 @@ class UserRepository(BaseRepository[User, UserCreate, UserUpdate]):
         await self.session.flush()
         await self.session.refresh(user)
         return user
+
+    async def list_with_search(
+        self,
+        tenant_id: uuid.UUID | None = None,
+        search: str | None = None,
+        skip: int = 0,
+        limit: int = 20,
+    ) -> list[User]:
+        stmt = select(User).where(User.is_deleted.is_(False)).order_by(User.created_at.desc())
+        if tenant_id is not None:
+            stmt = stmt.where(User.tenant_id == tenant_id)
+        if search:
+            like = f"%{search}%"
+            stmt = stmt.where(or_(
+                User.full_name.ilike(like),
+                User.email.ilike(like),
+                User.phone.ilike(like),
+            ))
+        result = await self.session.execute(stmt.offset(skip).limit(limit))
+        return list(result.scalars().all())
+
+    async def count_with_search(
+        self,
+        tenant_id: uuid.UUID | None = None,
+        search: str | None = None,
+    ) -> int:
+        stmt = select(func.count()).select_from(User).where(User.is_deleted.is_(False))
+        if tenant_id is not None:
+            stmt = stmt.where(User.tenant_id == tenant_id)
+        if search:
+            like = f"%{search}%"
+            stmt = stmt.where(or_(
+                User.full_name.ilike(like),
+                User.email.ilike(like),
+                User.phone.ilike(like),
+            ))
+        result = await self.session.execute(stmt)
+        return result.scalar_one()
 
     async def revoke_all_sessions(self, user_id: uuid.UUID) -> None:
         stmt = (

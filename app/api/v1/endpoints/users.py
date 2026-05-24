@@ -24,11 +24,17 @@ def _get_service(db: AsyncSession) -> UserService:
 @router.get("/", response_model=PaginatedResponse[UserResponse])
 async def list_users(
     pagination: Annotated[PaginationParams, Depends(get_pagination_params)],
-    current_user: Annotated[object, Depends(require_roles(UserRole.SUPER_ADMIN, UserRole.TENANT_ADMIN))],
+    current_user: Annotated[object, Depends(require_roles(
+        UserRole.SUPER_ADMIN, UserRole.ADMIN_APPS, UserRole.TENANT_ADMIN
+    ))],
     db: Annotated[AsyncSession, Depends(get_db)],
+    search: str | None = None,
 ) -> PaginatedResponse[UserResponse]:
-    repo = UserRepository(db)
-    items, total = await UserService(repo).list(pagination)
+    from app.domains.users.models import User as UserModel
+    actor: UserModel = current_user  # type: ignore[assignment]
+    tenant_id = actor.tenant_id if actor.role == UserRole.TENANT_ADMIN else None
+    service = _get_service(db)
+    items, total = await service.list_users(pagination, tenant_id=tenant_id, search=search)
     return PaginatedResponse.create(
         items=[UserResponse.model_validate(u) for u in items],
         total=total,
@@ -40,7 +46,9 @@ async def list_users(
 @router.post("/", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 async def create_user(
     data: UserCreate,
-    current_user: Annotated[object, Depends(require_roles(UserRole.SUPER_ADMIN, UserRole.TENANT_ADMIN))],
+    current_user: Annotated[object, Depends(require_roles(
+        UserRole.SUPER_ADMIN, UserRole.ADMIN_APPS, UserRole.TENANT_ADMIN
+    ))],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> UserResponse:
     service = _get_service(db)

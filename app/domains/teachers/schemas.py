@@ -12,6 +12,8 @@ class TeacherCreate(BaseSchema):
     nip: str
     full_name: str
     gender: Gender
+    phone: str | None = None
+    dial_code: str = "62"
     birth_date: date | None = None
     specialization: str | None = None
     qualification: str | None = None
@@ -24,6 +26,8 @@ class TeacherCreate(BaseSchema):
 class TeacherUpdate(BaseSchema):
     full_name: str | None = None
     gender: Gender | None = None
+    phone: str | None = None
+    dial_code: str = "62"
     birth_date: date | None = None
     specialization: str | None = None
     qualification: str | None = None
@@ -39,6 +43,7 @@ class TeacherResponse(BaseSchema):
     nip: str
     full_name: str
     gender: Gender
+    phone: str | None
     birth_date: date | None
     specialization: str | None
     qualification: str | None

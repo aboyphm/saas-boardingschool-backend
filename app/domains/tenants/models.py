@@ -8,7 +8,7 @@ from sqlalchemy.dialects.postgresql import JSON, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.shared.base_model import BaseModel, TimestampMixin
-from app.shared.enums import SubscriptionPlan, TenantStatus
+from app.shared.enums import SchoolType, SubscriptionPlan, TenantStatus
 
 
 class Tenant(BaseModel):
@@ -31,6 +31,9 @@ class Tenant(BaseModel):
     )
     plan: Mapped[SubscriptionPlan] = mapped_column(
         String(20), nullable=False, default=SubscriptionPlan.FREE
+    )
+    school_type: Mapped[SchoolType] = mapped_column(
+        String(20), nullable=False, default=SchoolType.BOARDING, server_default="boarding"
     )
 
     # ─── Branding ─────────────────────────────────────────────────────────────

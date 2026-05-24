@@ -6,7 +6,7 @@ from datetime import datetime
 from pydantic import EmailStr, field_validator
 
 from app.shared.base_schema import BaseSchema
-from app.shared.enums import SubscriptionPlan, TenantStatus
+from app.shared.enums import SchoolType, SubscriptionPlan, TenantStatus
 
 
 class TenantCreate(BaseSchema):
@@ -18,6 +18,7 @@ class TenantCreate(BaseSchema):
     plan: SubscriptionPlan = SubscriptionPlan.TRIAL if False else SubscriptionPlan.FREE
     country: str = "Indonesia"
     timezone: str = "Asia/Jakarta"
+    school_type: SchoolType = SchoolType.BOARDING
 
     @field_validator("slug", "subdomain")
     @classmethod
@@ -42,6 +43,7 @@ class TenantUpdate(BaseSchema):
     secondary_color: str | None = None
     font_family: str | None = None
     timezone: str | None = None
+    school_type: SchoolType | None = None
     settings: dict | None = None
 
 
@@ -62,6 +64,7 @@ class TenantResponse(BaseSchema):
     custom_domain: str | None
     status: TenantStatus
     plan: SubscriptionPlan
+    school_type: SchoolType
     logo_url: str | None
     primary_color: str
     secondary_color: str

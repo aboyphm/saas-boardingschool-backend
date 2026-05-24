@@ -50,6 +50,8 @@ class Teacher(BaseModel, SoftDeleteMixin):
         nullable=True,
     )
 
+    phone: Mapped[str | None] = mapped_column(String(30), nullable=True)
+
     employment_type: Mapped[EmploymentType] = mapped_column(
         String(20), nullable=False, default=EmploymentType.FULL_TIME
     )

@@ -89,8 +89,8 @@ def create_app() -> FastAPI:
         title="Boarding School SaaS API",
         version="1.0.0",
         description=(
-            "Enterprise multi-tenant SaaS platform for Islamic boarding school "
-            "(Pesantren) management. Supports students, teachers, attendance, "
+            "Enterprise multi-tenant SaaS platform for multi-type boarding school and educational institution "
+            "management. Supports students, teachers, attendance, "
             "finance, dormitory management, and more."
         ),
         docs_url="/docs" if not settings.is_production else None,
@@ -148,6 +148,9 @@ def create_app() -> FastAPI:
 
     # ─── Routes ───────────────────────────────────────────────────────────────
     app.include_router(api_router, prefix="/api/v1")
+
+    from app.api.v1.websocket.exam_monitor import ws_router as exam_ws_router
+    app.include_router(exam_ws_router)
 
     @app.get("/health", tags=["Health"], include_in_schema=False)
     async def health_check() -> dict:

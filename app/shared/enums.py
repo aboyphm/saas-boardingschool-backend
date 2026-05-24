@@ -119,6 +119,23 @@ class EmploymentType(str, enum.Enum):
     FULL_TIME = "full_time"
     PART_TIME = "part_time"
     HONORARY = "honorary"
+    HONORER = "honorer"
+    INTERNSHIP = "internship"
+    FREELANCE = "freelance"
+
+
+class ContractStatus(str, enum.Enum):
+    DRAFT = "draft"
+    ACTIVE = "active"
+    TERMINATED = "terminated"
+    EXPIRED = "expired"
+
+
+class PayrollRunStatus(str, enum.Enum):
+    DRAFT = "draft"
+    APPROVED = "approved"
+    PAID = "paid"
+    CANCELLED = "cancelled"
 
 
 class SubjectType(str, enum.Enum):
@@ -143,3 +160,46 @@ class PayrollStatus(str, enum.Enum):
 class Semester(int, enum.Enum):
     FIRST = 1
     SECOND = 2
+
+
+class SchoolType(str, enum.Enum):
+    PESANTREN = "pesantren"
+    BOARDING = "boarding"
+    INTERNATIONAL = "international"
+    TEMPORARY = "temporary"
+    REGULAR = "regular"
+
+
+class DayOfWeek(str, enum.Enum):
+    MONDAY = "MONDAY"
+    TUESDAY = "TUESDAY"
+    WEDNESDAY = "WEDNESDAY"
+    THURSDAY = "THURSDAY"
+    FRIDAY = "FRIDAY"
+    SATURDAY = "SATURDAY"
+
+
+class SchoolEventType(str, enum.Enum):
+    HOLIDAY = "HOLIDAY"
+    EXAM_PERIOD = "EXAM_PERIOD"
+    PARENT_DAY = "PARENT_DAY"
+    SCHOOL_EVENT = "SCHOOL_EVENT"
+    OTHER = "OTHER"
+
+
+class QuestionType(str, enum.Enum):
+    MCQ   = "MCQ"
+    ESSAY = "ESSAY"
+
+
+class ExamStatus(str, enum.Enum):
+    DRAFT     = "DRAFT"
+    PUBLISHED = "PUBLISHED"
+    ACTIVE    = "ACTIVE"
+    COMPLETED = "COMPLETED"
+
+
+class SessionStatus(str, enum.Enum):
+    IN_PROGRESS = "IN_PROGRESS"
+    SUBMITTED   = "SUBMITTED"
+    GRADED      = "GRADED"

@@ -46,7 +46,7 @@ class Student(BaseModel, SoftDeleteMixin):
     # ─── Personal ─────────────────────────────────────────────────────────────
     birth_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     birth_place: Mapped[str | None] = mapped_column(String(100), nullable=True)
-    religion: Mapped[str] = mapped_column(String(50), default="Islam")
+    religion: Mapped[str] = mapped_column(String(50), default="")
     nationality: Mapped[str] = mapped_column(String(50), default="Indonesian")
     address: Mapped[str | None] = mapped_column(Text, nullable=True)
     city: Mapped[str | None] = mapped_column(String(100), nullable=True)

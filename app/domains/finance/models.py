@@ -4,7 +4,7 @@ import uuid
 from datetime import date, datetime
 
 from sqlalchemy import Date, DateTime, ForeignKey, Integer, Numeric, String, Text, UniqueConstraint
-from sqlalchemy.dialects.postgresql import JSON, UUID
+from sqlalchemy.dialects.postgresql import JSON, JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.shared.base_model import BaseModel, TimestampMixin
@@ -150,6 +150,40 @@ class PayrollRecord(BaseModel, TimestampMixin):
         String(20), nullable=False, default=PayrollStatus.DRAFT
     )
     paid_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    # ─── HR domain extensions (added in migration 004) ────────────────────────
+    contract_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("employee_contracts.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    payroll_run_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("payroll_runs.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    gross_salary: Mapped[float | None] = mapped_column(Numeric(15, 2), nullable=True)
+    tax_amount: Mapped[float | None] = mapped_column(Numeric(15, 2), nullable=True)
+    bpjs_employee: Mapped[float | None] = mapped_column(Numeric(15, 2), nullable=True)
+    bpjs_employer: Mapped[float | None] = mapped_column(Numeric(15, 2), nullable=True)
+    other_deductions: Mapped[float] = mapped_column(Numeric(15, 2), nullable=False, default=0)
+    allowances_total: Mapped[float] = mapped_column(Numeric(15, 2), nullable=False, default=0)
+    # Shape: [{"description": str, "amount": float, "type": "addition"|"deduction"}]
+    one_time_adjustments: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
+
+    # ─── Relationships ────────────────────────────────────────────────────────
+    contract: Mapped["EmployeeContract | None"] = relationship(  # noqa: F821
+        "EmployeeContract",
+        back_populates="payroll_records",
+        foreign_keys=[contract_id],
+    )
+    payroll_run: Mapped["PayrollRun | None"] = relationship(  # noqa: F821
+        "PayrollRun",
+        back_populates="payroll_records",
+        foreign_keys=[payroll_run_id],
+    )
 
 
 # SQLAlchemy needs this import here due to relationship back-reference

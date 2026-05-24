@@ -217,17 +217,19 @@ class AuthService:
         """Generate a 6-digit OTP and deliver it via the WA OTP microservice."""
         settings = get_settings()
 
-        # Normalize phone: strip spaces, ensure E.164 for WA (08x → 628x)
-        phone = data.phone.strip().replace(" ", "").replace("-", "")
+        # Normalize phone: strip spaces/dashes/+, ensure 628x format (08x → 628x, 8x → 628x)
+        phone = data.phone.strip().replace(" ", "").replace("-", "").lstrip("+")
         if phone.startswith("0"):
             phone = "62" + phone[1:]
+        elif not phone.startswith("62"):
+            phone = "62" + phone
 
         user = await self.user_repo.get_by_phone(phone)
         if user is None:
             # Respond ambiguously — don't reveal whether the number is registered
             return OtpResponse(message="If this number is registered, an OTP has been sent.")
 
-        if not user.is_active:
+        if not user.is_active and user.is_verified:
             raise UnauthorizedError("This account has been deactivated.")
 
         otp_code = f"{random.randint(0, 999999):06d}"
@@ -247,7 +249,7 @@ class AuthService:
         async with httpx.AsyncClient(timeout=10.0) as client:
             resp = await client.post(
                 f"{settings.WA_OTP_URL}/send-otp",
-                json={"phone": phone, "otp_code": otp_code},
+                json={"phone": phone, "otp_code": otp_code, "appName": "Academizy"},
                 headers={"X-Internal-Secret": settings.WA_OTP_SECRET},
             )
             resp.raise_for_status()
@@ -256,19 +258,29 @@ class AuthService:
 
     async def verify_otp(self, data: VerifyOtpRequest) -> TokenResponse:
         """Verify the submitted OTP and issue JWT tokens on success."""
-        phone = data.phone.strip().replace(" ", "").replace("-", "")
+        phone = data.phone.strip().replace(" ", "").replace("-", "").lstrip("+")
         if phone.startswith("0"):
             phone = "62" + phone[1:]
+        elif not phone.startswith("62"):
+            phone = "62" + phone
 
         otp_session = await self.auth_repo.get_valid_otp(phone, data.otp_code)
         if otp_session is None:
             raise UnauthorizedError("Invalid or expired OTP.")
 
+        if otp_session.user_id is None:
+            raise UnauthorizedError("Invalid OTP session.")
         user = await self.user_repo.get(otp_session.user_id)
-        if user is None or not user.is_active:
+        if user is None:
+            raise UnauthorizedError("User account not found.")
+        if not user.is_active and user.is_verified:
             raise UnauthorizedError("User account is inactive.")
 
         await self.auth_repo.mark_otp_used(otp_session)
+
+        if not user.is_verified:
+            user.is_active = True
+            user.is_verified = True
 
         payload = self._build_token_payload(user)
         access_token = create_access_token(payload)

@@ -16,6 +16,7 @@ class UserCreate(BaseSchema):
     role: UserRole = UserRole.ADMIN_STAFF
     tenant_id: uuid.UUID | None = None
     phone: str | None = None
+    dial_code: str = "62"
     username: str | None = None
 
     @field_validator("password")
@@ -29,6 +30,7 @@ class UserCreate(BaseSchema):
 class UserUpdate(BaseSchema):
     full_name: str | None = None
     phone: str | None = None
+    dial_code: str | None = None
     avatar_url: str | None = None
     username: str | None = None
     is_active: bool | None = None
@@ -40,6 +42,7 @@ class UserResponse(BaseSchema):
     full_name: str
     username: str | None
     phone: str | None
+    dial_code: str
     avatar_url: str | None
     role: UserRole
     tenant_id: uuid.UUID | None
