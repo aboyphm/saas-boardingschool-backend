@@ -44,6 +44,7 @@ class TenantUpdate(BaseSchema):
     font_family: str | None = None
     timezone: str | None = None
     school_type: SchoolType | None = None
+    plan: SubscriptionPlan | None = None
     settings: dict | None = None
 
 

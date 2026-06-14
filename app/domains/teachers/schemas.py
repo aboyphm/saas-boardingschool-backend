@@ -18,6 +18,7 @@ class TeacherCreate(BaseSchema):
     specialization: str | None = None
     qualification: str | None = None
     subjects: list[str] = []
+    grade_levels: list[str] = []
     employment_type: EmploymentType = EmploymentType.FULL_TIME
     join_date: date | None = None
     user_id: uuid.UUID | None = None
@@ -32,6 +33,7 @@ class TeacherUpdate(BaseSchema):
     specialization: str | None = None
     qualification: str | None = None
     subjects: list[str] | None = None
+    grade_levels: list[str] | None = None
     employment_type: EmploymentType | None = None
     is_homeroom_teacher: bool | None = None
     homeroom_class_id: uuid.UUID | None = None
@@ -48,6 +50,7 @@ class TeacherResponse(BaseSchema):
     specialization: str | None
     qualification: str | None
     subjects: list
+    grade_levels: list
     is_homeroom_teacher: bool
     homeroom_class_id: uuid.UUID | None
     employment_type: EmploymentType

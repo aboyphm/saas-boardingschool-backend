@@ -142,8 +142,14 @@ async def get_session(
     current_user: Annotated[User, Depends(get_current_active_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> SessionResponse:
+    from app.domains.students.repository import StudentRepository
+    student_id = None
+    if current_user.role == UserRole.STUDENT:
+        student_repo = StudentRepository(db)
+        student = await student_repo.get_by_user_id(current_user.id, _tid(current_user))
+        student_id = student.id if student else None
     svc = _get_service(db)
-    session, questions = await svc.get_session(session_id, _tid(current_user))
+    session, questions = await svc.get_session(session_id, _tid(current_user), student_id=student_id)
     resp = SessionResponse.model_validate(session)
     safe_questions = []
     for q in questions:
@@ -161,8 +167,12 @@ async def save_answer(
     current_user: Annotated[User, Depends(require_roles(UserRole.STUDENT))],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> dict:
+    from app.domains.students.repository import StudentRepository
+    student_repo = StudentRepository(db)
+    student = await student_repo.get_by_user_id(current_user.id, _tid(current_user))
+    student_id = student.id if student else None
     svc = _get_service(db)
-    await svc.save_answer(session_id, data, _tid(current_user))
+    await svc.save_answer(session_id, data, _tid(current_user), student_id=student_id)
     return {"ok": True}
 
 
@@ -172,8 +182,12 @@ async def submit_session(
     current_user: Annotated[User, Depends(require_roles(UserRole.STUDENT))],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> SessionResponse:
+    from app.domains.students.repository import StudentRepository
+    student_repo = StudentRepository(db)
+    student = await student_repo.get_by_user_id(current_user.id, _tid(current_user))
+    student_id = student.id if student else None
     svc = _get_service(db)
-    session = await svc.submit_session(session_id, _tid(current_user))
+    session = await svc.submit_session(session_id, _tid(current_user), student_id=student_id)
     return SessionResponse.model_validate(session)
 
 
@@ -183,8 +197,14 @@ async def get_session_result(
     current_user: Annotated[User, Depends(get_current_active_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> SessionResponse:
+    from app.domains.students.repository import StudentRepository
+    student_id = None
+    if current_user.role == UserRole.STUDENT:
+        student_repo = StudentRepository(db)
+        student = await student_repo.get_by_user_id(current_user.id, _tid(current_user))
+        student_id = student.id if student else None
     svc = _get_service(db)
-    session = await svc.get_session_result(session_id, _tid(current_user))
+    session = await svc.get_session_result(session_id, _tid(current_user), student_id=student_id)
     return SessionResponse.model_validate(session)
 
 
@@ -324,8 +344,13 @@ async def start_session(
     current_user: Annotated[User, Depends(require_roles(UserRole.STUDENT))],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> SessionResponse:
+    from app.domains.students.repository import StudentRepository
+    student_repo = StudentRepository(db)
+    student = await student_repo.get_by_user_id(current_user.id, _tid(current_user))
+    if student is None:
+        raise ForbiddenError("No student record found for this account.")
     svc = _get_service(db)
-    session = await svc.start_session(exam_id, current_user.id, _tid(current_user))
+    session = await svc.start_session(exam_id, student.id, _tid(current_user))
     return SessionResponse.model_validate(session)
 
 

@@ -5,7 +5,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query, status
 
-from app.api.deps import get_current_active_user, require_roles
+from app.api.deps import require_roles
 from app.core.database import AsyncSession, get_db
 from app.domains.finance.repository import (
     FeeCategoryRepository,
@@ -16,6 +16,7 @@ from app.domains.finance.repository import (
 from app.domains.finance.schemas import (
     FeeCategoryCreate,
     FeeCategoryResponse,
+    FeeCategoryUpdate,
     InvoiceCreate,
     InvoiceResponse,
     PaymentCreate,
@@ -45,9 +46,13 @@ def _get_service(db: AsyncSession) -> FinanceService:
 # ─── Fee categories ───────────────────────────────────────────────────────────
 @router.get("/fee-categories", response_model=list[FeeCategoryResponse])
 async def list_fee_categories(
-    current_user: Annotated[User, Depends(get_current_active_user)],
+    current_user: Annotated[User, Depends(require_roles(
+        UserRole.TENANT_ADMIN, UserRole.FINANCE_STAFF, UserRole.OWNER, UserRole.SUPER_ADMIN
+    ))],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> list[FeeCategoryResponse]:
+    if current_user.tenant_id is None:
+        return []
     service = _get_service(db)
     items = await service.list_fee_categories(current_user.tenant_id)
     return [FeeCategoryResponse.model_validate(i) for i in items]
@@ -66,14 +71,47 @@ async def create_fee_category(
     return FeeCategoryResponse.model_validate(category)
 
 
+@router.put("/fee-categories/{category_id}", response_model=FeeCategoryResponse)
+async def update_fee_category(
+    category_id: uuid.UUID,
+    data: FeeCategoryUpdate,
+    current_user: Annotated[User, Depends(require_roles(
+        UserRole.TENANT_ADMIN, UserRole.FINANCE_STAFF, UserRole.SUPER_ADMIN
+    ))],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> FeeCategoryResponse:
+    service = _get_service(db)
+    category = await service.update_fee_category(
+        category_id, data, current_user.tenant_id
+    )
+    return FeeCategoryResponse.model_validate(category)
+
+
+@router.delete("/fee-categories/{category_id}", status_code=status.HTTP_200_OK)
+async def delete_fee_category(
+    category_id: uuid.UUID,
+    current_user: Annotated[User, Depends(require_roles(
+        UserRole.TENANT_ADMIN, UserRole.FINANCE_STAFF, UserRole.SUPER_ADMIN
+    ))],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> dict:
+    service = _get_service(db)
+    await service.delete_fee_category(category_id, current_user.tenant_id)
+    return {"ok": True}
+
+
 # ─── Invoices ─────────────────────────────────────────────────────────────────
 @router.get("/invoices", response_model=PaginatedResponse[InvoiceResponse])
 async def list_invoices(
     pagination: Annotated[PaginationParams, Depends(get_pagination_params)],
-    current_user: Annotated[User, Depends(get_current_active_user)],
+    current_user: Annotated[User, Depends(require_roles(
+        UserRole.TENANT_ADMIN, UserRole.FINANCE_STAFF, UserRole.OWNER, UserRole.SUPER_ADMIN
+    ))],
     db: Annotated[AsyncSession, Depends(get_db)],
     status: InvoiceStatus | None = Query(default=None),
 ) -> PaginatedResponse[InvoiceResponse]:
+    if current_user.tenant_id is None:
+        return PaginatedResponse.create(items=[], total=0, page=1, size=pagination.size)
     service = _get_service(db)
     items, total = await service.list_invoices(current_user.tenant_id, pagination, status)
     return PaginatedResponse.create(
@@ -100,7 +138,9 @@ async def create_invoice(
 @router.get("/invoices/{invoice_id}", response_model=InvoiceResponse)
 async def get_invoice(
     invoice_id: uuid.UUID,
-    current_user: Annotated[User, Depends(get_current_active_user)],
+    current_user: Annotated[User, Depends(require_roles(
+        UserRole.TENANT_ADMIN, UserRole.FINANCE_STAFF, UserRole.OWNER, UserRole.SUPER_ADMIN
+    ))],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> InvoiceResponse:
     service = _get_service(db)

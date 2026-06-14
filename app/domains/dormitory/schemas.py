@@ -82,3 +82,55 @@ class DormitoryAssignmentResponse(BaseSchema):
     vacated_date: date | None
     is_active: bool
     created_at: datetime
+
+
+# ── Supervisor ─────────────────────────────────────────────────────────────
+class DormitorySupervisorCreate(BaseSchema):
+    teacher_id: uuid.UUID
+    building_id: uuid.UUID
+    assigned_date: date
+
+
+class DormitorySupervisorResponse(BaseSchema):
+    id: uuid.UUID
+    teacher_id: uuid.UUID
+    building_id: uuid.UUID
+    assigned_date: date
+    created_at: datetime
+
+
+# ── Assignment enriched ────────────────────────────────────────────────────
+class DormitoryAssignmentWithStudentResponse(BaseSchema):
+    id: uuid.UUID
+    student_id: uuid.UUID
+    student_name: str
+    room_id: uuid.UUID
+    bed_number: str | None
+    assigned_date: date
+    is_active: bool
+
+
+# ── Room enriched ──────────────────────────────────────────────────────────
+class DormitoryRoomWithOccupantsResponse(BaseSchema):
+    id: uuid.UUID
+    room_number: str
+    floor: int | None
+    capacity: int
+    current_occupancy: int
+    status: str
+    room_type: str
+    facilities: list[str]
+    assignments: list[DormitoryAssignmentWithStudentResponse]
+
+
+# ── Building summary (for overview page) ──────────────────────────────────
+class DormitoryBuildingSummaryResponse(BaseSchema):
+    id: uuid.UUID
+    name: str
+    gender_type: str
+    capacity: int
+    current_occupancy: int
+    available_beds: int
+    room_count: int
+    location_notes: str | None
+    created_at: datetime

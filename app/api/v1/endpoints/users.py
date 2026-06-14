@@ -21,7 +21,7 @@ def _get_service(db: AsyncSession) -> UserService:
     return UserService(UserRepository(db))
 
 
-@router.get("/", response_model=PaginatedResponse[UserResponse])
+@router.get("", response_model=PaginatedResponse[UserResponse])
 async def list_users(
     pagination: Annotated[PaginationParams, Depends(get_pagination_params)],
     current_user: Annotated[object, Depends(require_roles(
@@ -43,7 +43,7 @@ async def list_users(
     )
 
 
-@router.post("/", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 async def create_user(
     data: UserCreate,
     current_user: Annotated[object, Depends(require_roles(
@@ -84,6 +84,7 @@ async def deactivate_user(
     user_id: uuid.UUID,
     current_user: Annotated[object, Depends(require_roles(UserRole.SUPER_ADMIN, UserRole.TENANT_ADMIN))],
     db: Annotated[AsyncSession, Depends(get_db)],
-) -> None:
+) -> dict:
     service = _get_service(db)
     await service.deactivate(user_id)
+    return {"ok": True}

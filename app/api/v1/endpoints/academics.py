@@ -24,6 +24,7 @@ from app.domains.academics.repository import (
     AcademicYearRepository,
     ClassEnrollmentRepository,
     ClassRoomRepository,
+    GradeCurriculumRepository,
     GradeRepository,
     ScheduleSlotRepository,
     SchoolEventRepository,
@@ -40,6 +41,9 @@ from app.domains.academics.schemas import (
     ClassRoomUpdate,
     EnrollStudentRequest,
     GradeBatchRequest,
+    GradeCurriculumResponse,
+    GradeCurriculumRow,
+    GradeCurriculumUpsert,
     GradeCreate,
     GradeResponse,
     ScheduleSlotCreate,
@@ -68,6 +72,7 @@ def _get_service(db: AsyncSession) -> AcademicsService:
         enrollment_repo=ClassEnrollmentRepository(db),
         event_repo=SchoolEventRepository(db),
         slot_repo=ScheduleSlotRepository(db),
+        curriculum_repo=GradeCurriculumRepository(db),
     )
 
 
@@ -152,7 +157,7 @@ async def create_subject(
 async def record_grade(
     data: GradeCreate,
     current_user: Annotated[User, Depends(require_roles(
-        UserRole.TEACHER, UserRole.TENANT_ADMIN, UserRole.SUPER_ADMIN
+        UserRole.TEACHER, UserRole.TENANT_ADMIN, UserRole.ADMIN_STAFF, UserRole.SUPER_ADMIN
     ))],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> GradeResponse:
@@ -192,7 +197,7 @@ async def update_academic_year(
 async def delete_academic_year(
     year_id: uuid.UUID,
     current_user: Annotated[User, Depends(require_roles(
-        UserRole.TENANT_ADMIN, UserRole.SUPER_ADMIN
+        UserRole.TENANT_ADMIN, UserRole.ADMIN_STAFF, UserRole.SUPER_ADMIN
     ))],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> dict:
@@ -231,7 +236,7 @@ async def update_class(
 async def delete_class(
     class_id: uuid.UUID,
     current_user: Annotated[User, Depends(require_roles(
-        UserRole.TENANT_ADMIN, UserRole.SUPER_ADMIN
+        UserRole.TENANT_ADMIN, UserRole.ADMIN_STAFF, UserRole.SUPER_ADMIN
     ))],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> dict:
@@ -311,7 +316,7 @@ async def update_subject(
 async def delete_subject(
     subject_id: uuid.UUID,
     current_user: Annotated[User, Depends(require_roles(
-        UserRole.TENANT_ADMIN, UserRole.SUPER_ADMIN
+        UserRole.TENANT_ADMIN, UserRole.ADMIN_STAFF, UserRole.SUPER_ADMIN
     ))],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> dict:
@@ -339,7 +344,7 @@ async def get_class_grade_matrix(
 async def batch_upsert_grades(
     data: GradeBatchRequest,
     current_user: Annotated[User, Depends(require_roles(
-        UserRole.TEACHER, UserRole.TENANT_ADMIN, UserRole.SUPER_ADMIN
+        UserRole.TEACHER, UserRole.TENANT_ADMIN, UserRole.ADMIN_STAFF, UserRole.SUPER_ADMIN
     ))],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> dict:
@@ -391,12 +396,50 @@ async def update_event(
 async def delete_event(
     event_id: uuid.UUID,
     current_user: Annotated[User, Depends(require_roles(
-        UserRole.TENANT_ADMIN, UserRole.SUPER_ADMIN
+        UserRole.TENANT_ADMIN, UserRole.ADMIN_STAFF, UserRole.SUPER_ADMIN
     ))],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> dict:
     service = _get_service(db)
     await service.delete_event(event_id, _tid(current_user))
+    return {"ok": True}
+
+
+# ─── Grade Curriculum ─────────────────────────────────────────────────────
+
+@router.get("/curriculum", response_model=list[GradeCurriculumRow])
+async def list_curriculum(
+    current_user: Annotated[User, Depends(get_current_active_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> list[GradeCurriculumRow]:
+    service = _get_service(db)
+    return await service.list_curriculum_matrix(_tid(current_user))
+
+
+@router.post("/curriculum", response_model=GradeCurriculumResponse, status_code=status.HTTP_200_OK)
+async def upsert_curriculum(
+    data: GradeCurriculumUpsert,
+    current_user: Annotated[User, Depends(require_roles(
+        UserRole.TENANT_ADMIN, UserRole.ADMIN_STAFF, UserRole.SUPER_ADMIN
+    ))],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> GradeCurriculumResponse:
+    service = _get_service(db)
+    entry = await service.upsert_curriculum(data, _tid(current_user))
+    return GradeCurriculumResponse.model_validate(entry)
+
+
+@router.delete("/curriculum/{subject_id}/{grade_level}", status_code=status.HTTP_200_OK)
+async def remove_curriculum(
+    subject_id: uuid.UUID,
+    grade_level: str,
+    current_user: Annotated[User, Depends(require_roles(
+        UserRole.TENANT_ADMIN, UserRole.ADMIN_STAFF, UserRole.SUPER_ADMIN
+    ))],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> dict:
+    service = _get_service(db)
+    await service.remove_curriculum(subject_id, grade_level, _tid(current_user))
     return {"ok": True}
 
 
@@ -444,7 +487,7 @@ async def update_slot(
 async def delete_slot(
     slot_id: uuid.UUID,
     current_user: Annotated[User, Depends(require_roles(
-        UserRole.TENANT_ADMIN, UserRole.SUPER_ADMIN
+        UserRole.TENANT_ADMIN, UserRole.ADMIN_STAFF, UserRole.SUPER_ADMIN
     ))],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> dict:

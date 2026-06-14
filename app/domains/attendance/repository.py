@@ -92,3 +92,18 @@ class LeaveRequestRepository(BaseRepository[LeaveRequest, dict, dict]):
         )
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
+
+    async def list_by_tenant(
+        self,
+        tenant_id: uuid.UUID,
+        status: LeaveRequestStatus | None = None,
+    ) -> list[LeaveRequest]:
+        stmt = (
+            select(LeaveRequest)
+            .where(LeaveRequest.tenant_id == tenant_id)
+            .order_by(LeaveRequest.created_at.desc())
+        )
+        if status is not None:
+            stmt = stmt.where(LeaveRequest.status == status)
+        result = await self.session.execute(stmt)
+        return list(result.scalars().all())

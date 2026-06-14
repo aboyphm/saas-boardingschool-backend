@@ -5,7 +5,7 @@ import statistics
 import uuid
 from datetime import datetime, timedelta, timezone
 
-from app.core.exceptions import ConflictError, NotFoundError
+from app.core.exceptions import ConflictError, ForbiddenError, NotFoundError
 from app.domains.exams.models import (
     Exam, ExamAnswer, ExamQuestion, ExamQuestionMap, ExamSession,
 )
@@ -266,11 +266,13 @@ class ExamsService:
         return session
 
     async def get_session(
-        self, session_id: uuid.UUID, tenant_id: uuid.UUID
+        self, session_id: uuid.UUID, tenant_id: uuid.UUID, student_id: uuid.UUID | None = None
     ) -> tuple[ExamSession, list[ExamQuestion]]:
         session = await self.session_repo.session.get(ExamSession, session_id)
         if session is None or session.tenant_id != tenant_id:
             raise NotFoundError("Session not found.")
+        if student_id is not None and session.student_id != student_id:
+            raise ForbiddenError("You can only access your own exam session.")
         questions = []
         for qid_str in session.shuffled_ids:
             q = await self.question_repo.session.get(ExamQuestion, uuid.UUID(qid_str))
@@ -283,10 +285,13 @@ class ExamsService:
         session_id: uuid.UUID,
         data: AnswerRequest,
         tenant_id: uuid.UUID,
+        student_id: uuid.UUID | None = None,
     ) -> ExamAnswer:
         session = await self.session_repo.session.get(ExamSession, session_id)
         if session is None or session.tenant_id != tenant_id:
             raise NotFoundError("Session not found.")
+        if student_id is not None and session.student_id != student_id:
+            raise ForbiddenError("You can only access your own exam session.")
 
         exam = await self.exam_repo.session.get(Exam, session.exam_id)
         started = session.started_at
@@ -333,11 +338,13 @@ class ExamsService:
             session.status = "GRADED"
 
     async def submit_session(
-        self, session_id: uuid.UUID, tenant_id: uuid.UUID
+        self, session_id: uuid.UUID, tenant_id: uuid.UUID, student_id: uuid.UUID | None = None
     ) -> ExamSession:
         session = await self.session_repo.session.get(ExamSession, session_id)
         if session is None or session.tenant_id != tenant_id:
             raise NotFoundError("Session not found.")
+        if student_id is not None and session.student_id != student_id:
+            raise ForbiddenError("You can only access your own exam session.")
         if session.status != "IN_PROGRESS":
             raise ConflictError("Session already submitted.")
         exam = await self.exam_repo.session.get(Exam, session.exam_id)
@@ -346,11 +353,13 @@ class ExamsService:
         return session
 
     async def get_session_result(
-        self, session_id: uuid.UUID, tenant_id: uuid.UUID
+        self, session_id: uuid.UUID, tenant_id: uuid.UUID, student_id: uuid.UUID | None = None
     ) -> ExamSession:
         session = await self.session_repo.session.get(ExamSession, session_id)
         if session is None or session.tenant_id != tenant_id:
             raise NotFoundError("Session not found.")
+        if student_id is not None and session.student_id != student_id:
+            raise ForbiddenError("You can only access your own exam session.")
         if session.status not in ("GRADED",):
             raise ConflictError("Results not yet available.")
         return session

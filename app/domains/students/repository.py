@@ -76,3 +76,32 @@ class StudentRepository(BaseRepository[Student, StudentCreate, StudentUpdate]):
         )
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
+
+    async def get_by_user_id(
+        self, user_id: uuid.UUID, tenant_id: uuid.UUID
+    ) -> Student | None:
+        """Find the student record linked to a given user account."""
+        stmt = select(Student).where(
+            Student.user_id == user_id,
+            Student.tenant_id == tenant_id,
+            Student.is_deleted.is_(False),
+        )
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def list_by_parent_user_id(
+        self, parent_user_id: uuid.UUID, tenant_id: uuid.UUID
+    ) -> list[Student]:
+        """Return all Student records whose parent_user_id matches the given user."""
+        stmt = (
+            select(Student)
+            .join(StudentParent, StudentParent.student_id == Student.id)
+            .where(
+                StudentParent.parent_user_id == parent_user_id,
+                Student.tenant_id == tenant_id,
+                Student.is_deleted.is_(False),
+            )
+            .order_by(Student.full_name)
+        )
+        result = await self.session.execute(stmt)
+        return list(result.scalars().all())

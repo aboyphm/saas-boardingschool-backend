@@ -29,7 +29,7 @@ def _tenant(user: User) -> uuid.UUID:
     return user.tenant_id
 
 
-@router.get("/", response_model=PaginatedResponse[TeacherResponse])
+@router.get("", response_model=PaginatedResponse[TeacherResponse])
 async def list_teachers(
     pagination: Annotated[PaginationParams, Depends(get_pagination_params)],
     current_user: Annotated[User, Depends(get_current_active_user)],
@@ -50,7 +50,7 @@ async def list_teachers(
     )
 
 
-@router.post("/", response_model=TeacherResponse, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=TeacherResponse, status_code=status.HTTP_201_CREATED)
 async def create_teacher(
     data: TeacherCreate,
     current_user: Annotated[User, Depends(require_roles(
@@ -60,6 +60,19 @@ async def create_teacher(
 ) -> TeacherResponse:
     service = _get_service(db)
     teacher = await service.create_teacher(data)
+    return TeacherResponse.model_validate(teacher)
+
+
+@router.get("/me", response_model=TeacherResponse)
+async def get_my_teacher_profile(
+    current_user: Annotated[User, Depends(get_current_active_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> TeacherResponse:
+    """Return the Teacher record linked to the current authenticated user."""
+    repo = TeacherRepository(db)
+    teacher = await repo.get_by_user_id(current_user.id, _tenant(current_user))
+    if teacher is None:
+        raise HTTPException(status_code=404, detail="No teacher profile found for this account.")
     return TeacherResponse.model_validate(teacher)
 
 
@@ -95,6 +108,7 @@ async def delete_teacher(
         UserRole.TENANT_ADMIN, UserRole.SUPER_ADMIN
     ))],
     db: Annotated[AsyncSession, Depends(get_db)],
-) -> None:
+) -> dict:
     service = _get_service(db)
     await service.delete_teacher(teacher_id, _tenant(current_user))
+    return {"ok": True}

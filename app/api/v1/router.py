@@ -3,8 +3,12 @@ from fastapi import APIRouter
 from app.api.v1.endpoints import (
     academics,
     admin_apps,
+    admissions,
+    assets,
     attendance,
     auth,
+    certificates,
+    cors as cors_ep,
     dormitory,
     exams,
     finance,
@@ -12,6 +16,7 @@ from app.api.v1.endpoints import (
     notifications,
     reports,
     students,
+    subscriptions,
     teachers,
     tenants,
     users,
@@ -33,3 +38,8 @@ api_router.include_router(notifications.router, prefix="/notifications", tags=["
 api_router.include_router(reports.router, prefix="/reports", tags=["Reports"])
 api_router.include_router(hr.router, prefix="/hr", tags=["HR"])
 api_router.include_router(exams.router, prefix="/exams", tags=["Exams"])
+api_router.include_router(subscriptions.router, prefix="/subscriptions", tags=["Subscriptions"])
+api_router.include_router(admissions.router, prefix="/admissions", tags=["Admissions"])
+api_router.include_router(assets.router, prefix="/assets", tags=["Assets"])
+api_router.include_router(certificates.router, prefix="/certificates", tags=["Certificates"])
+api_router.include_router(cors_ep.router, prefix="/cors-origins", tags=["CORS"])

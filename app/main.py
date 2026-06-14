@@ -5,8 +5,8 @@ from contextlib import asynccontextmanager
 
 import sentry_sdk
 from fastapi import FastAPI, Request
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
+from fastapi.responses import Response as _Response
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse
 
@@ -58,6 +58,30 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     except Exception as exc:
         logger.warning("Redis connection failed — continuing without cache", error=str(exc))
 
+    # Load CORS origins from DB into the in-memory registry
+    from app.core.cors_registry import set_origins
+    from app.core.database import AsyncSessionLocal
+    from app.domains.cors.repository import CorsOriginRepository
+
+    static_origins = set(settings.CORS_ORIGINS)
+    db_origins: set[str] = set()
+    try:
+        async with AsyncSessionLocal() as _cors_session:
+            _repo = CorsOriginRepository(_cors_session)
+            entries = await _repo.list_active()
+            db_origins = {e.origin for e in entries}
+    except Exception as exc:
+        logger.warning("Could not load CORS origins from DB at startup", error=str(exc))
+
+    merged = static_origins | db_origins
+    set_origins(merged)
+    logger.info(
+        "CORS registry loaded",
+        total=len(merged),
+        from_env=len(static_origins),
+        from_db=len(db_origins),
+    )
+
     # Initialise Sentry in non-development environments
     if settings.SENTRY_DSN and not settings.is_development:
         sentry_sdk.init(dsn=settings.SENTRY_DSN, environment=settings.ENVIRONMENT)
@@ -97,6 +121,7 @@ def create_app() -> FastAPI:
         redoc_url="/redoc" if not settings.is_production else None,
         openapi_url="/openapi.json" if not settings.is_production else None,
         lifespan=lifespan,
+        redirect_slashes=False,
     )
 
     # ─── Middleware (applied in reverse order) ────────────────────────────────
@@ -110,14 +135,38 @@ def create_app() -> FastAPI:
             allowed_hosts=settings.ALLOWED_HOSTS,
         )
 
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=settings.CORS_ORIGINS,
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-        expose_headers=["X-Request-ID"],
-    )
+    # ─── Dynamic CORS middleware (DB-managed origins) ─────────────────────────
+    from app.core.cors_registry import get_allowed
+
+    @app.middleware("http")
+    async def _dynamic_cors(request: Request, call_next):
+        origin = request.headers.get("origin", "")
+        allowed = get_allowed()
+
+        # Preflight
+        if request.method == "OPTIONS" and origin:
+            if origin in allowed:
+                return _Response(
+                    status_code=200,
+                    headers={
+                        "Access-Control-Allow-Origin": origin,
+                        "Access-Control-Allow-Credentials": "true",
+                        "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, PATCH, OPTIONS",
+                        "Access-Control-Allow-Headers": "*",
+                        "Access-Control-Max-Age": "600",
+                        "Vary": "Origin",
+                    },
+                )
+            return _Response(status_code=403)
+
+        response = await call_next(request)
+
+        if origin and origin in allowed:
+            response.headers["Access-Control-Allow-Origin"] = origin
+            response.headers["Access-Control-Allow-Credentials"] = "true"
+            response.headers["Vary"] = "Origin"
+
+        return response
 
     # ─── Exception handlers ───────────────────────────────────────────────────
     @app.exception_handler(AppException)

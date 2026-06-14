@@ -47,6 +47,30 @@ class FinanceService:
     async def list_fee_categories(self, tenant_id: uuid.UUID) -> list[FeeCategory]:
         return await self.fee_repo.list(filters={"tenant_id": tenant_id})
 
+    async def update_fee_category(
+        self,
+        category_id: uuid.UUID,
+        data: FeeCategoryUpdate,
+        tenant_id: uuid.UUID,
+    ) -> FeeCategory:
+        category = await self.fee_repo.get_by_tenant(category_id, tenant_id)
+        if category is None:
+            raise NotFoundError("Fee category not found.")
+        for field, value in data.model_dump(exclude_none=True).items():
+            setattr(category, field, value)
+        await self.fee_repo.session.flush()
+        await self.fee_repo.session.refresh(category)
+        return category
+
+    async def delete_fee_category(
+        self, category_id: uuid.UUID, tenant_id: uuid.UUID
+    ) -> None:
+        category = await self.fee_repo.get_by_tenant(category_id, tenant_id)
+        if category is None:
+            raise NotFoundError("Fee category not found.")
+        await self.fee_repo.session.delete(category)
+        await self.fee_repo.session.flush()
+
     # ─── Invoices ─────────────────────────────────────────────────────────────
     async def create_invoice(self, data: InvoiceCreate, created_by: uuid.UUID) -> Invoice:
         invoice_number = await self.invoice_repo.get_next_invoice_number(data.tenant_id)

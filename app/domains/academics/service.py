@@ -13,11 +13,13 @@ from app.domains.academics.models import (
     ScheduleSlot,
     SchoolEvent,
     Subject,
+    SubjectGradeCurriculum,
 )
 from app.domains.academics.repository import (
     AcademicYearRepository,
     ClassEnrollmentRepository,
     ClassRoomRepository,
+    GradeCurriculumRepository,
     GradeRepository,
     ScheduleSlotRepository,
     SchoolEventRepository,
@@ -31,6 +33,9 @@ from app.domains.academics.schemas import (
     ClassRoomUpdate,
     EnrollStudentRequest,
     GradeBatchItem,
+    GradeCurriculumResponse,
+    GradeCurriculumRow,
+    GradeCurriculumUpsert,
     GradeCreate,
     ScheduleSlotCreate,
     ScheduleSlotUpdate,
@@ -53,6 +58,7 @@ class AcademicsService:
         enrollment_repo: ClassEnrollmentRepository,
         event_repo: SchoolEventRepository,
         slot_repo: ScheduleSlotRepository,
+        curriculum_repo: GradeCurriculumRepository,
     ) -> None:
         self.year_repo = year_repo
         self.class_repo = class_repo
@@ -61,6 +67,7 @@ class AcademicsService:
         self.enrollment_repo = enrollment_repo
         self.event_repo = event_repo
         self.slot_repo = slot_repo
+        self.curriculum_repo = curriculum_repo
 
     # ─── Academic years ───────────────────────────────────────────────────────
     async def create_year(self, data: AcademicYearCreate) -> AcademicYear:
@@ -429,3 +436,56 @@ class AcademicsService:
             raise NotFoundError("Schedule slot not found.")
         await self.slot_repo.session.delete(slot)
         await self.slot_repo.session.flush()
+
+    # ── Grade Curriculum ───────────────────────────────────────────────────────
+    async def list_curriculum_matrix(
+        self, tenant_id: uuid.UUID
+    ) -> list[GradeCurriculumRow]:
+        entries = await self.curriculum_repo.list_by_tenant(tenant_id)
+        subjects = await self.subject_repo.list_by_tenant(tenant_id)
+
+        assignment_map: dict[uuid.UUID, dict[str, bool]] = {}
+        for entry in entries:
+            if entry.subject_id not in assignment_map:
+                assignment_map[entry.subject_id] = {}
+            assignment_map[entry.subject_id][entry.grade_level] = entry.is_lead
+
+        rows = []
+        for subj in subjects:
+            rows.append(GradeCurriculumRow(
+                subject_id=subj.id,
+                subject_code=subj.code,
+                subject_name=subj.name,
+                subject_type=str(subj.subject_type),
+                grades=assignment_map.get(subj.id, {}),
+            ))
+        return rows
+
+    async def upsert_curriculum(
+        self, data: GradeCurriculumUpsert, tenant_id: uuid.UUID
+    ) -> SubjectGradeCurriculum:
+        existing = await self.curriculum_repo.get_by_subject_grade(
+            data.subject_id, data.grade_level, tenant_id
+        )
+        if existing:
+            existing.is_lead = data.is_lead
+            await self.curriculum_repo.session.flush()
+            await self.curriculum_repo.session.refresh(existing)
+            return existing
+        entry = SubjectGradeCurriculum(
+            tenant_id=tenant_id,
+            subject_id=data.subject_id,
+            grade_level=data.grade_level,
+            is_lead=data.is_lead,
+        )
+        self.curriculum_repo.session.add(entry)
+        await self.curriculum_repo.session.flush()
+        await self.curriculum_repo.session.refresh(entry)
+        return entry
+
+    async def remove_curriculum(
+        self, subject_id: uuid.UUID, grade_level: str, tenant_id: uuid.UUID
+    ) -> None:
+        removed = await self.curriculum_repo.delete_entry(subject_id, grade_level, tenant_id)
+        if not removed:
+            raise NotFoundError("Curriculum entry not found.")

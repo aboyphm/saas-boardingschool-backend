@@ -19,6 +19,7 @@ from app.domains.tenants.schemas import (
 from app.domains.admin_apps.repository import AdminAppsRepository
 from app.domains.tenants.service import TenantService
 from app.shared.base_schema import PaginatedResponse
+from app.core.exceptions import ForbiddenError
 from app.shared.enums import UserRole
 from app.shared.pagination import PaginationParams, get_pagination_params
 
@@ -66,6 +67,36 @@ async def create_tenant(
         await AdminAppsRepository(db).assign_tenant(
             current_user.id, tenant.id, current_user.id
         )
+    return TenantResponse.model_validate(tenant)
+
+
+@router.get("/me", response_model=TenantResponse)
+async def get_my_tenant(
+    current_user: Annotated[User, Depends(require_roles(
+        UserRole.TENANT_ADMIN, UserRole.OWNER, UserRole.ADMIN_STAFF,
+        UserRole.SUPER_ADMIN,
+    ))],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> TenantResponse:
+    if current_user.tenant_id is None:
+        raise ForbiddenError("No tenant context for this user.")
+    service = _get_service(db)
+    tenant = await service.get_or_404(current_user.tenant_id)
+    return TenantResponse.model_validate(tenant)
+
+
+@router.put("/me", response_model=TenantResponse)
+async def update_my_tenant(
+    data: TenantUpdate,
+    current_user: Annotated[User, Depends(require_roles(
+        UserRole.TENANT_ADMIN, UserRole.OWNER, UserRole.SUPER_ADMIN,
+    ))],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> TenantResponse:
+    if current_user.tenant_id is None:
+        raise ForbiddenError("No tenant context for this user.")
+    service = _get_service(db)
+    tenant = await service.update_tenant(current_user.tenant_id, data)
     return TenantResponse.model_validate(tenant)
 
 

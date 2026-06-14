@@ -50,6 +50,14 @@ class UserService:
             phone_existing = await self.repository.get_by_phone(data.phone, data.tenant_id)
             if phone_existing is not None:
                 raise ConflictError(f"A user with phone '{data.phone}' already exists.")
+            # Warn if phone exists in another tenant — cross-tenant collision causes OTP login ambiguity
+            global_existing = await self.repository.get_by_phone(data.phone)
+            if global_existing and global_existing.tenant_id != data.tenant_id:
+                import logging as _logging
+                _logging.getLogger(__name__).warning(
+                    "Phone %s already exists in tenant %s — cross-tenant collision will cause OTP ambiguity",
+                    data.phone, global_existing.tenant_id,
+                )
 
         hashed = get_password_hash(data.password)
         user_data = data.model_dump(exclude={"password"})

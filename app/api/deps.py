@@ -2,7 +2,10 @@ from __future__ import annotations
 
 import uuid
 from collections.abc import Callable
-from typing import Annotated
+from typing import TYPE_CHECKING, Annotated
+
+if TYPE_CHECKING:
+    from app.domains.students.models import Student
 
 from fastapi import Depends, Request
 from fastapi.security import OAuth2PasswordBearer
@@ -108,6 +111,23 @@ async def get_tenant_user(
         raise ForbiddenError("You do not have access to this tenant.")
 
     return current_user
+
+
+async def get_current_student(
+    current_user: Annotated[User, Depends(get_current_active_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> "Student":
+    """Resolve the Student record for the currently authenticated STUDENT user.
+    Raises ForbiddenError if no student record is linked to this account.
+    """
+    from app.domains.students.repository import StudentRepository
+    repo = StudentRepository(db)
+    if current_user.tenant_id is None:
+        raise ForbiddenError("No student record found for this user account.")
+    student = await repo.get_by_user_id(current_user.id, current_user.tenant_id)
+    if student is None:
+        raise ForbiddenError("No student record found for this user account.")
+    return student
 
 
 def require_roles(*roles: UserRole) -> Callable:

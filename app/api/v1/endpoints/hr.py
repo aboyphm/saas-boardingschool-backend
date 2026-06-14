@@ -106,7 +106,7 @@ async def list_eligible_staff(
 @router.get("/contracts", response_model=PaginatedResponse[ContractResponse])
 async def list_contracts(
     pagination: Annotated[PaginationParams, Depends(get_pagination_params)],
-    current_user: Annotated[User, Depends(get_current_active_user)],
+    current_user: Annotated[User, Depends(require_roles(*_WRITE_ROLES))],
     db: Annotated[AsyncSession, Depends(get_db)],
     status_filter: ContractStatus | None = Query(default=None, alias="status"),
 ) -> PaginatedResponse[ContractResponse]:
@@ -148,7 +148,7 @@ async def create_contract(
 @router.get("/contracts/{contract_id}", response_model=ContractResponse)
 async def get_contract(
     contract_id: uuid.UUID,
-    current_user: Annotated[User, Depends(get_current_active_user)],
+    current_user: Annotated[User, Depends(require_roles(*_WRITE_ROLES))],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> ContractResponse:
     service = ContractService(db)
@@ -202,7 +202,7 @@ async def preview_payroll(
 @router.get("/payroll/runs", response_model=PaginatedResponse[PayrollRunResponse])
 async def list_payroll_runs(
     pagination: Annotated[PaginationParams, Depends(get_pagination_params)],
-    current_user: Annotated[User, Depends(get_current_active_user)],
+    current_user: Annotated[User, Depends(require_roles(*_WRITE_ROLES))],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> PaginatedResponse[PayrollRunResponse]:
     service = PayrollRunService(db)
@@ -241,7 +241,7 @@ async def create_payroll_run(
 @router.get("/payroll/runs/{run_id}", response_model=PayrollRunResponse)
 async def get_payroll_run(
     run_id: uuid.UUID,
-    current_user: Annotated[User, Depends(get_current_active_user)],
+    current_user: Annotated[User, Depends(require_roles(*_WRITE_ROLES))],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> PayrollRunResponse:
     service = PayrollRunService(db)
@@ -317,6 +317,14 @@ async def download_payslip(
     record = next((r for r in records if r.id == record_id), None)
     if record is None:
         raise HTTPException(status_code=404, detail="Payroll record not found.")
+
+    # Allow download only if: admin/finance role OR this is the user's own payslip
+    if current_user.role not in _WRITE_ROLES:
+        if record.teacher_id != current_user.id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You can only download your own payslip.",
+            )
 
     # Fetch employee user
     user_res = await db.execute(select(User).where(User.id == record.teacher_id))

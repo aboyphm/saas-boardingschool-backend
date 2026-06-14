@@ -246,13 +246,28 @@ class AuthService:
             "expires_at": expires_at,
         })
 
+        import logging as _logging
+        _logger = _logging.getLogger(__name__)
+
         async with httpx.AsyncClient(timeout=10.0) as client:
-            resp = await client.post(
-                f"{settings.WA_OTP_URL}/send-otp",
-                json={"phone": phone, "otp_code": otp_code, "appName": "Academizy"},
-                headers={"X-Internal-Secret": settings.WA_OTP_SECRET},
-            )
-            resp.raise_for_status()
+            try:
+                resp = await client.post(
+                    f"{settings.WA_OTP_URL}/send-otp-custom-brand",
+                    json={"phone": phone, "otp_code": otp_code, "app_name": "Academizy"},
+                    headers={"X-Internal-Secret": settings.WA_OTP_SECRET},
+                )
+                resp.raise_for_status()
+            except (httpx.HTTPStatusError, httpx.RequestError) as exc:
+                if settings.ENVIRONMENT == "development":
+                    _logger.warning(
+                        "[DEV] WA OTP service unavailable (%s). "
+                        "OTP for %s: %s",
+                        exc,
+                        phone,
+                        otp_code,
+                    )
+                else:
+                    raise
 
         return OtpResponse(message="OTP has been sent to your WhatsApp number.")
 

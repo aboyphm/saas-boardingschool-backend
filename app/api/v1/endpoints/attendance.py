@@ -55,7 +55,7 @@ async def bulk_attendance(
     return [AttendanceRecordResponse.model_validate(r) for r in records]
 
 
-@router.get("/", response_model=list[AttendanceRecordResponse])
+@router.get("", response_model=list[AttendanceRecordResponse])
 async def list_attendance(
     current_user: Annotated[User, Depends(get_current_active_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -92,6 +92,28 @@ async def submit_leave_request(
     current_user: Annotated[User, Depends(get_current_active_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> LeaveRequestResponse:
+    # For STUDENT: override student_id with own record — never trust client
+    if current_user.role == UserRole.STUDENT:
+        from app.domains.students.repository import StudentRepository
+        from app.core.exceptions import ForbiddenError
+        if current_user.tenant_id is None:
+            raise ForbiddenError("No tenant context for this account.")
+        repo = StudentRepository(db)
+        student = await repo.get_by_user_id(current_user.id, current_user.tenant_id)
+        if student is None:
+            raise ForbiddenError("No student record found for this account.")
+        data.student_id = student.id
+    elif current_user.role == UserRole.PARENT:
+        # PARENT: verify the submitted student_id is one of their children
+        from app.domains.students.repository import StudentRepository
+        from app.core.exceptions import ForbiddenError
+        repo = StudentRepository(db)
+        if current_user.tenant_id is None:
+            raise ForbiddenError("No tenant context.")
+        children = await repo.list_by_parent_user_id(current_user.id, current_user.tenant_id)
+        child_ids = {c.id for c in children}
+        if data.student_id not in child_ids:
+            raise ForbiddenError("You can only submit leave requests for your own children.")
     service = _get_service(db)
     leave = await service.submit_leave_request(data)
     return LeaveRequestResponse.model_validate(leave)
@@ -121,3 +143,18 @@ async def reject_leave(
     service = _get_service(db)
     leave = await service.reject_leave(leave_id, current_user.tenant_id)
     return LeaveRequestResponse.model_validate(leave)
+
+
+@router.get("/leave-requests", response_model=list[LeaveRequestResponse])
+async def list_leave_requests(
+    current_user: Annotated[User, Depends(get_current_active_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+    status: str | None = Query(default=None),
+) -> list[LeaveRequestResponse]:
+    if current_user.tenant_id is None:
+        return []
+    service = _get_service(db)
+    from app.shared.enums import LeaveRequestStatus
+    status_enum = LeaveRequestStatus(status) if status else None
+    requests = await service.list_leave_requests(current_user.tenant_id, status_enum)
+    return [LeaveRequestResponse.model_validate(r) for r in requests]

@@ -16,21 +16,30 @@ class UserRepository(BaseRepository[User, UserCreate, UserUpdate]):
         super().__init__(User, session)
 
     async def get_by_phone(self, phone: str, tenant_id: uuid.UUID | None = None) -> User | None:
-        stmt = select(User).where(User.phone == phone, User.is_deleted.is_(False))
-        if tenant_id is not None:
-            stmt = stmt.where(User.tenant_id == tenant_id)
-        result = await self.session.execute(stmt)
-        return result.scalar_one_or_none()
-
-    async def get_by_email(self, email: str, tenant_id: uuid.UUID | None = None) -> User | None:
         stmt = (
             select(User)
-            .where(User.email == email, User.is_deleted.is_(False))
+            .where(User.phone == phone, User.is_deleted.is_(False))
+            .order_by(
+                User.is_verified.desc(),  # verified users first
+                User.is_active.desc(),    # active users next
+                User.created_at.asc(),    # oldest (primary account) as tiebreak
+            )
         )
         if tenant_id is not None:
             stmt = stmt.where(User.tenant_id == tenant_id)
         result = await self.session.execute(stmt)
-        return result.scalar_one_or_none()
+        if tenant_id is not None:
+            return result.scalar_one_or_none()
+        return result.scalars().first()
+
+    async def get_by_email(self, email: str, tenant_id: uuid.UUID | None = None) -> User | None:
+        stmt = select(User).where(User.email == email, User.is_deleted.is_(False))
+        if tenant_id is not None:
+            stmt = stmt.where(User.tenant_id == tenant_id)
+        result = await self.session.execute(stmt)
+        if tenant_id is not None:
+            return result.scalar_one_or_none()
+        return result.scalars().first()
 
     async def get_by_role_in_tenant(
         self, role: UserRole, tenant_id: uuid.UUID

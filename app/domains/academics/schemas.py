@@ -219,3 +219,26 @@ class StudentGradeMatrixRow(BaseSchema):
 class ClassGradeMatrixResponse(BaseSchema):
     rows: list[StudentGradeMatrixRow]
     subject_ids: list[str]
+
+
+# ── Grade Curriculum ───────────────────────────────────────────────────────
+class GradeCurriculumUpsert(BaseSchema):
+    subject_id: uuid.UUID
+    grade_level: str
+    is_lead: bool = False
+
+
+class GradeCurriculumResponse(BaseSchema):
+    id: uuid.UUID
+    subject_id: uuid.UUID
+    grade_level: str
+    is_lead: bool
+
+
+class GradeCurriculumRow(BaseSchema):
+    """One subject row in the curriculum matrix, with grade assignments."""
+    subject_id: uuid.UUID
+    subject_code: str
+    subject_name: str
+    subject_type: str
+    grades: dict[str, bool]  # grade_level -> is_lead (key absent = not in curriculum)

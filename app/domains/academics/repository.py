@@ -13,6 +13,7 @@ from app.domains.academics.models import (
     ScheduleSlot,
     SchoolEvent,
     Subject,
+    SubjectGradeCurriculum,
 )
 from app.domains.academics.schemas import (
     AcademicYearCreate,
@@ -20,6 +21,7 @@ from app.domains.academics.schemas import (
     ClassEnrollmentResponse,
     ClassRoomCreate,
     ClassRoomUpdate,
+    GradeCurriculumUpsert,
     GradeCreate,
     ScheduleSlotCreate,
     ScheduleSlotUpdate,
@@ -231,3 +233,40 @@ class ScheduleSlotRepository(BaseRepository[ScheduleSlot, ScheduleSlotCreate, Sc
             stmt = stmt.where(ScheduleSlot.id != exclude_id)
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none() is not None
+
+
+class GradeCurriculumRepository(
+    BaseRepository[SubjectGradeCurriculum, GradeCurriculumUpsert, GradeCurriculumUpsert]
+):
+    def __init__(self, session: AsyncSession) -> None:
+        super().__init__(SubjectGradeCurriculum, session)
+
+    async def list_by_tenant(self, tenant_id: uuid.UUID) -> list[SubjectGradeCurriculum]:
+        stmt = (
+            select(SubjectGradeCurriculum)
+            .where(SubjectGradeCurriculum.tenant_id == tenant_id)
+            .order_by(SubjectGradeCurriculum.grade_level, SubjectGradeCurriculum.created_at)
+        )
+        result = await self.session.execute(stmt)
+        return list(result.scalars().all())
+
+    async def get_by_subject_grade(
+        self, subject_id: uuid.UUID, grade_level: str, tenant_id: uuid.UUID
+    ) -> SubjectGradeCurriculum | None:
+        stmt = select(SubjectGradeCurriculum).where(
+            SubjectGradeCurriculum.subject_id == subject_id,
+            SubjectGradeCurriculum.grade_level == grade_level,
+            SubjectGradeCurriculum.tenant_id == tenant_id,
+        )
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def delete_entry(
+        self, subject_id: uuid.UUID, grade_level: str, tenant_id: uuid.UUID
+    ) -> bool:
+        entry = await self.get_by_subject_grade(subject_id, grade_level, tenant_id)
+        if entry is None:
+            return False
+        await self.session.delete(entry)
+        await self.session.flush()
+        return True

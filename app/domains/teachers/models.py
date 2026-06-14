@@ -42,6 +42,7 @@ class Teacher(BaseModel, SoftDeleteMixin):
     specialization: Mapped[str | None] = mapped_column(String(255), nullable=True)
     qualification: Mapped[str | None] = mapped_column(String(255), nullable=True)
     subjects: Mapped[list] = mapped_column(JSON, default=list)
+    grade_levels: Mapped[list] = mapped_column(JSON, default=list)
 
     is_homeroom_teacher: Mapped[bool] = mapped_column(default=False, nullable=False)
     homeroom_class_id: Mapped[uuid.UUID | None] = mapped_column(

@@ -203,3 +203,41 @@ class SessionStatus(str, enum.Enum):
     IN_PROGRESS = "IN_PROGRESS"
     SUBMITTED   = "SUBMITTED"
     GRADED      = "GRADED"
+
+
+class AdmissionBatchStatus(str, enum.Enum):
+    OPEN = "open"
+    CLOSED = "closed"
+    COMPLETED = "completed"
+
+
+class AdmissionStatus(str, enum.Enum):
+    SUBMITTED = "submitted"
+    UNDER_REVIEW = "under_review"
+    ACCEPTED = "accepted"
+    REJECTED = "rejected"
+
+
+class AssetCategory(str, enum.Enum):
+    ELECTRONICS = "electronics"
+    FURNITURE = "furniture"
+    VEHICLE = "vehicle"
+    BUILDING = "building"
+    CONSUMABLE = "consumable"
+    OTHER = "other"
+
+
+class AssetCondition(str, enum.Enum):
+    GOOD = "good"
+    FAIR = "fair"
+    POOR = "poor"
+    BROKEN = "broken"
+    LOST = "lost"
+
+
+class CertificateType(str, enum.Enum):
+    GRADUATION = "graduation"
+    HAFALAN_COMPLETION = "hafalan_completion"
+    ACADEMIC_ACHIEVEMENT = "academic_achievement"
+    COURSE_COMPLETION = "course_completion"
+    OTHER = "other"

@@ -3,7 +3,7 @@ from __future__ import annotations
 import uuid
 from datetime import date
 
-from sqlalchemy import Date, ForeignKey, Integer, Numeric, String, Text, UniqueConstraint
+from sqlalchemy import Boolean, Date, ForeignKey, Integer, Numeric, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -234,3 +234,21 @@ class ScheduleSlot(BaseModel, TimestampMixin):
     day_of_week: Mapped[str] = mapped_column(String(10), nullable=False)
     time_start: Mapped[str] = mapped_column(String(5), nullable=False)
     time_end: Mapped[str] = mapped_column(String(5), nullable=False)
+
+
+class SubjectGradeCurriculum(BaseModel, TimestampMixin):
+    __tablename__ = "grade_curricula"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "subject_id", "grade_level", name="uq_grade_curriculum"),
+    )
+
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("tenants.id", ondelete="CASCADE"),
+        nullable=False, index=True,
+    )
+    subject_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("subjects.id", ondelete="CASCADE"),
+        nullable=False, index=True,
+    )
+    grade_level: Mapped[str] = mapped_column(String(10), nullable=False)
+    is_lead: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)

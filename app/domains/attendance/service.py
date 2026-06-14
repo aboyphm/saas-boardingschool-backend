@@ -131,3 +131,10 @@ class AttendanceService:
         await self.leave_repo.session.flush()
         await self.leave_repo.session.refresh(leave)
         return leave
+
+    async def list_leave_requests(
+        self,
+        tenant_id: uuid.UUID,
+        status: LeaveRequestStatus | None = None,
+    ) -> list[LeaveRequest]:
+        return await self.leave_repo.list_by_tenant(tenant_id, status)

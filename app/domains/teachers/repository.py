@@ -41,3 +41,13 @@ class TeacherRepository(BaseRepository[Teacher, TeacherCreate, TeacherUpdate]):
         )
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
+
+    async def get_by_user_id(
+        self, user_id: uuid.UUID, tenant_id: uuid.UUID
+    ) -> Teacher | None:
+        stmt = select(Teacher).where(
+            Teacher.user_id == user_id,
+            Teacher.tenant_id == tenant_id,
+        )
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
